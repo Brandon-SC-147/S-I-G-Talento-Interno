@@ -25,15 +25,14 @@ builder.Services.AddSwaggerGen();
 // --- CORS para Frontend ---
 builder.Services.AddCors(o =>
 {
-    o.AddPolicy("Frontend", p =>
+    o.AddPolicy("AllowFrontend", p =>
         p.WithOrigins(
-            "http://localhost:3000",
-            "http://localhost:4200",
-            "http://localhost:5173",
-            "http://127.0.0.1:5173"
+            "http://localhost:9000",
+            "http://localhost:9200"
         )
         .AllowAnyHeader()
-        .AllowAnyMethod());
+        .AllowAnyMethod()
+        .AllowCredentials());
 });
 
 // --- CONEXIÓN A SQL SERVER ---
@@ -86,7 +85,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors("Frontend");
+// CORS debe ir después de HTTPS y antes de Auth
+app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();

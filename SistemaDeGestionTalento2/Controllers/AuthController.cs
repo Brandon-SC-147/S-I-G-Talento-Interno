@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SistemaDeGestionTalento.Core.DTOs;
@@ -8,6 +8,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace SistemaDeGestionTalento.Controllers
 {
@@ -66,7 +67,9 @@ namespace SistemaDeGestionTalento.Controllers
                 return BadRequest("Usuario no encontrado.");
             }
 
-            if (usuario.ContraseñaHash != HashPassword(request.Password))
+            // Validación estricta: comparar hash
+            var hashedInput = HashPassword(request.Password);
+            if (usuario.ContraseñaHash != hashedInput)
             {
                 return BadRequest("Contraseña incorrecta.");
             }
@@ -76,8 +79,37 @@ namespace SistemaDeGestionTalento.Controllers
             return Ok(new
             {
                 token,
-                user = new { id = usuario.Id, email = usuario.Correo, nombre = usuario.Nombre, apellido = usuario.Apellido, rolId = usuario.RolId }
+                userId = usuario.Id,
+                nombre = usuario.Nombre,
+                email = usuario.Correo,
+                rolId = usuario.RolId
             });
+        }
+
+        // Endpoint de mantenimiento: convierte contraseñas almacenadas en texto plano a hash SHA256
+        // Criterio: si ContraseñaHash no coincide con 64 caracteres hex, se asume texto plano y se transforma.
+        [HttpPost("fix-password-hashes")]
+        public async Task<ActionResult> FixPasswordHashes()
+        {
+            var hex64 = new Regex("^[a-f0-9]{64}$", RegexOptions.IgnoreCase);
+            var usuarios = await _context.Usuarios.ToListAsync();
+            int updated = 0;
+
+            foreach (var u in usuarios)
+            {
+                if (string.IsNullOrWhiteSpace(u.ContraseñaHash) || !hex64.IsMatch(u.ContraseñaHash))
+                {
+                    u.ContraseñaHash = HashPassword(u.ContraseñaHash ?? string.Empty);
+                    updated++;
+                }
+            }
+
+            if (updated > 0)
+            {
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { updated });
         }
 
         [HttpGet("me")]
@@ -121,8 +153,9 @@ namespace SistemaDeGestionTalento.Controllers
                 new Claim(ClaimTypes.Role, usuario.RolId.ToString())
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration.GetSection("Jwt:Key").Value ?? throw new InvalidOperationException("JWT Key is missing")));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+            var keyString = _configuration.GetSection("Jwt:Key").Value ?? throw new InvalidOperationException("JWT Key is missing");
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: _configuration.GetSection("Jwt:Issuer").Value ?? throw new InvalidOperationException("JWT Issuer is missing"),
@@ -138,3 +171,5 @@ namespace SistemaDeGestionTalento.Controllers
         }
     }
 }
+
+
