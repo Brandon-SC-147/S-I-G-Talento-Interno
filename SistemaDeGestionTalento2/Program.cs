@@ -22,6 +22,20 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// --- CORS para Frontend ---
+builder.Services.AddCors(o =>
+{
+    o.AddPolicy("Frontend", p =>
+        p.WithOrigins(
+            "http://localhost:3000",
+            "http://localhost:4200",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173"
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod());
+});
+
 // --- CONEXIÓN A SQL SERVER ---
 builder.Services.AddDbContext<SgiDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -63,6 +77,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("Frontend");
 
 app.UseAuthentication();
 app.UseAuthorization();

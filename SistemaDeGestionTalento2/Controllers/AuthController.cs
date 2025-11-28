@@ -51,7 +51,7 @@ namespace SistemaDeGestionTalento.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult<string>> Login(LoginDto request)
+        public async Task<ActionResult<object>> Login(LoginDto request)
         {
             var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Correo == request.Email);
 
@@ -67,7 +67,34 @@ namespace SistemaDeGestionTalento.Controllers
 
             string token = CreateToken(usuario);
 
-            return Ok(token);
+            return Ok(new
+            {
+                token,
+                user = new { id = usuario.Id, email = usuario.Correo, nombre = usuario.Nombre, apellido = usuario.Apellido, rolId = usuario.RolId }
+            });
+        }
+
+        [HttpGet("me")]
+        public async Task<ActionResult<object>> Me()
+        {
+            if (User?.Identity?.IsAuthenticated != true)
+            {
+                return Unauthorized();
+            }
+
+            var sub = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(sub) || !int.TryParse(sub, out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Id == userId);
+            if (usuario == null)
+            {
+                return Unauthorized();
+            }
+
+            return Ok(new { id = usuario.Id, email = usuario.Correo, nombre = usuario.Nombre, apellido = usuario.Apellido, rolId = usuario.RolId });
         }
 
         private string HashPassword(string password)
@@ -85,7 +112,7 @@ namespace SistemaDeGestionTalento.Controllers
             {
                 new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
                 new Claim(ClaimTypes.Name, usuario.Correo),
-                new Claim(ClaimTypes.Role, usuario.RolId.ToString()) // Asumiendo que RolId mapea a roles
+                new Claim(ClaimTypes.Role, usuario.RolId.ToString())
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration.GetSection("Jwt:Key").Value ?? throw new InvalidOperationException("JWT Key is missing")));
