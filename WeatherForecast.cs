@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 namespace SistemaDeGestionTalento
+=======
+namespace SistemaGestionTalento.Api
+>>>>>>> 788b7c312d8d23ae0a4ff9bc812a332db25c584a
 {
     public class WeatherForecast
     {
