@@ -69,6 +69,14 @@ builder.Services.AddAuthentication(options =>
 
 var app = builder.Build();
 
+// --- APLICAR MIGRACIONES EN ARRANQUE (solo dev/prod controlado) ---
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<SgiDbContext>();
+    // Crea la BD si no existe y aplica todas las migraciones pendientes
+    db.Database.Migrate();
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

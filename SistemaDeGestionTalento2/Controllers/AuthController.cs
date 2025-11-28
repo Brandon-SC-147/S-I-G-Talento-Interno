@@ -27,6 +27,12 @@ namespace SistemaDeGestionTalento.Controllers
         [HttpPost("register")]
         public async Task<ActionResult<Usuario>> Register(RegisterDto request)
         {
+            // Validar rol existente para evitar error de FK
+            if (!await _context.Roles.AnyAsync(r => r.Id == request.RolId))
+            {
+                return BadRequest($"RolId {request.RolId} no existe. Cree el rol primero o use uno válido.");
+            }
+
             if (await _context.Usuarios.AnyAsync(u => u.Correo == request.Email))
             {
                 return BadRequest("El usuario ya existe.");
